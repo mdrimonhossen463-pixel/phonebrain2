@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PhoneBrain - তোমার বন্ধু</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:sans-serif;background:#0f172a;color:white;display:flex;flex-direction:column;height:100vh}
+header{padding:14px;background:#1e293b;text-align:center;font-weight:bold;font-size:20px}
+header small{display:block;font-weight:normal;font-size:12px;color:#94a3b8}
+#setup{padding:12px;background:#1e293b;display:flex;flex-direction:column;gap:8px}
+#setup input{padding:10px;border-radius:8px;border:none;outline:none}
+#setup button{padding:10px;border:none;border-radius:8px;background:#22c55e;color:white;font-weight:bold}
+#chat{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+.msg{max-width:85%;padding:10px 12px;border-radius:14px;line-height:1.5;font-size:15px;white-space:pre-wrap}
+.user{background:#2563eb;align-self:flex-end}
+.ai{background:#334155;align-self:flex-start}
+#box{display:flex;gap:8px;padding:10px;background:#1e293b}
+#box input{flex:1;padding:12px;border-radius:20px;border:none;outline:none}
+#box button{padding:10px 16px;border:none;border-radius:20px;background:#22c55e;color:white;font-weight:bold}
+</style>
+</head>
+<body>
+<header>🧠 PhoneBrain<small>তোমার ফোনের বুদ্ধিমান বন্ধু</small></header>
+<div id="setup">
+<input id="nameInput" placeholder="তোমার নাম লিখো...">
+<input id="keyInput" placeholder="তোমার Gemini Key এখানে পেস্ট করো...">
+<button onclick="saveSetup()">শুরু করো ▶️</button>
+</div>
+<div id="chat"></div>
+<div id="box">
+<input id="q" placeholder="কিছু জিজ্ঞেস করো...">
+<button onclick="ask()">পাঠাও</button>
+</div>
+<script>
+let myName = localStorage.getItem('pb_name') || '';
+let myKey = localStorage.getItem('pb_key') || '';
+if(myName) document.getElementById('nameInput').value = myName;
+if(myKey) document.getElementById('keyInput').value = myKey;
+if(myName && myKey) document.getElementById('setup').style.display='none';
+function saveSetup(){
+  myName = document.getElementById('nameInput').value.trim();
+  myKey = document.getElementById('keyInput').value.trim();
+  if(!myName || !myKey){ alert('নাম আর Key দুইটাই দাও'); return; }
+  localStorage.setItem('pb_name', myName);
+  localStorage.setItem('pb_key', myKey);
+  document.getElementById('setup').style.display='none';
+  addMsg('ai', 'হ্যালো ' + myName + '! আমি PhoneBrain। বলো, কী সাহায্য করবো?');
+}
+function addMsg(who, text){
+  let d = document.createElement('div');
+  d.className = 'msg ' + who;
+  d.textContent = text;
+  document.getElementById('chat').appendChild(d);
+  document.getElementById('chat').scrollTop = 99999;
+}
+async function ask(){
+  let inp = document.getElementById('q');
+  let text = inp.value.trim();
+  if(!text) return;
+  if(!myKey){ alert('আগে উপরে নাম আর Key দিয়ে শুরু করো'); return; }
+  addMsg('user', text);
+  inp.value='';
+  addMsg('ai', 'ভাবছি...');
+  try{
+    let res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + myKey, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({contents:[{parts:[{text:'তুমি PhoneBrain, বাংলায় বন্ধুর মতো কথা বলো। ইউজারের নাম '+myName+'. প্রশ্ন: '+text}]}]})
+    });
+    let data = await res.json();
+    let ans = data.candidates?.[0]?.content?.parts?.[0]?.text || 'দুঃখিত, আবার চেষ্টা করো। Key ঠিক আছে কিনা দেখো।';
+    document.querySelectorAll('.msg.ai').forEach(e=>{ if(e.textContent==='ভাবছি...') e.remove(); });
+    addMsg('ai', ans);
+  }catch(e){
+    addMsg('ai', 'ইন্টারনেট বা Key তে সমস্যা হচ্ছে।');
+  }
+}
+document.getElementById('q').addEventListener('keydown', e=>{ if(e.key==='Enter') ask(); });
+</script>
+</body>
+</html>
